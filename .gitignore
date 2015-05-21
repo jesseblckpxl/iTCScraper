@@ -1,0 +1,3 @@
+#exclude debugging screenshots
+*.jpg
+*.jpeg
