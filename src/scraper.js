@@ -157,18 +157,31 @@ function betaReview(){
 		console.log(betaTestingOn);
 
 		if(betaTestingOn){
-			console.log("Beta Testing Switch is on");
+			console.log("Beta testing is on");
 		}else{
     	console.log("Beta testing is off.");
-    	var betaButton = page.evaluate(function(){
-				var el = document.getElementById("testing-2_0");
-				return el;
+    	page.evaluate(function(){
+
+				function click(elem){
+    			var ev = document.createEvent('MouseEvent');
+    			ev.initMouseEvent(
+        		'click',
+        		true /* bubble */, true /* cancelable */,
+        		window, null,
+        		0, 0, 0, 0, /* coordinates */
+        		false, false, false, false, /* modifier keys */
+        		0 /*left*/, null
+    			);
+			    elem.dispatchEvent(ev);
+				};
+
+				var button = $("a:contains('TestFlight Beta Testing')")[1];
+				click(button);
 			});
-			console.log(betaButton.offsetLeft);
-			page.sendEvent('click', betaButton.offsetLeft, betaButton.offsetTop, 'left');
 		}
 
-		phantom.exit();
+		page.render("after-buttonclick.jpeg");
+
   }, 10000);
 }
 
@@ -191,7 +204,6 @@ page.onLoadFinished = function(status){
 			//debugging
 			betaReview();
 		  break;
-
 		default:
 			state = signIn();
 			console.log("State = default.");
