@@ -2,7 +2,8 @@ var page = require( 'webpage' ).create();
 var system = require('system');
 var state = "login";
 
-var user_name, user_password, appName;
+//versions should use underscore , e.g. 2.0.1 -> 2_0_1
+var user_name, user_password, app_name, app_version;
 
 function evaluate(page, func) {
   var args = [].slice.call(arguments, 2);
@@ -19,7 +20,28 @@ page.onError = function(msg, trace) {
   }
 };
 
-page.open("https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa");
+function waitFor(testFx, onReady, timeOutMillis) {
+  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 5000, //< Default Max Timout is 5s
+    start = new Date().getTime(),
+    condition = false,
+    interval = setInterval(function() {
+      if ( (new Date().getTime() - start < maxtimeOutMillis) && !condition ) {
+        // If not time-out yet and condition not yet fulfilled
+        condition = (typeof(testFx) === "string" ? eval(testFx) : testFx()); //< defensive code
+      } else {
+        if(!condition) {
+          // If condition still not fulfilled (timeout but condition is 'false')
+          console.log("'waitFor()' timeout");
+          phantom.exit(1);
+        } else {
+            // Condition fulfilled (timeout and/or condition is 'true')
+            console.log("'waitFor()' finished in " + (new Date().getTime() - start) + "ms.");
+            typeof(onReady) === "string" ? eval(onReady) : onReady(); //< Do what it's supposed to do once the condition is fulfilled
+            clearInterval(interval); //< Stop this interval
+        }
+      }
+    }, 250); //< repeat check every 250ms
+};
 
 function signIn(){
   //Get iTunes connect username and password through command line arguments
@@ -31,9 +53,11 @@ function signIn(){
     }else if (i == 2){
       user_password = system.args[2];
     }else if (i == 3){
-      appName =system.args[3];
-      //debuggin
-      console.log(appName);
+      app_name =system.args[3];
+      console.log(app_name);
+    }else if (i == 4){
+      app_version = system.args[4];
+      console.log(app_version);
     }
   }
 
@@ -70,26 +94,25 @@ function navToMyApps(){
   });
 }
 
-function goToApp(){
+function navToApp(){
   // debugging
   console.log("Currently on: " + page.url + " in goToApp");
-
   // Setting time out to wait for page to finish loading so that we can find the right element and link
   // TO-DO: write function to check for all elements to have loaded instead of using setTimeOut
   setTimeout(function(){
     page.render("appslist.jpg");
-    state = evaluate(page, function(appName){
-      var app = "'" + appName + "'";
+    state = evaluate(page, function(app_name){
+      var app = "'" + app_name + "'";
       var el = $("a:contains(" + app + ")")[0];
       if (el != null){
         window.location.href = el.href;
       }
       return "preRelease";
-    }, appName);
+    }, app_name);
   }, 10000);
 }
 
-function preRelease(){
+function navToPreRelease(){
   //debugging
   console.log("Currently on: " + page.url + " in preRelease");
 
@@ -107,7 +130,7 @@ function preRelease(){
   }, 5000);
 }
 
-function betaReview(){
+function checkBetaReview(){
   // check if test flight beta testing button is on or off
   // if on proceed, if off turn on
   console.log("Currently on: " + page.url + " in betaReview()");
@@ -148,19 +171,39 @@ console.log("Beta Testing switch is on.");
 }
 */
 
-    var betaTestingOn = page.evaluate(function(){
-      var el = $(":input:checkbox[ng-model='checkboxValue']").prop('checked');
+    var betaTestingOn = evaluate(page, function(app_version){
+      //Check the TestFlight Beta Testing button
+      var el = $(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked');
       return el;
-    });
+    }, app_version);
 
     console.log(betaTestingOn);
 
     if(betaTestingOn){
       console.log("Beta testing is on");
+      //click on Submit For Beta App Review button
+      page.evaluate(function(){
+        var submit = $("a:contains('Submit for Beta App Review')")[0];
+        if (submit !== null){
+          function click(elem){
+            var ev = document.createEvent('MouseEvent');
+            ev.initMouseEvent(
+              'click',
+              true /* bubble */, true /* cancelable */,
+              window, null,
+              0, 0, 0, 0, /* coordinates */
+              false, false, false, false, /* modifier keys */
+              0 /*left*/, null
+            );
+            elem.dispatchEvent(ev);
+          }
+          click(submit);
+        }
+      });
     }else{
       console.log("Beta testing is off.");
       //Turn on TestFlight Beta Testing
-      page.evaluate(function(){
+      evaluate(page, function(app_version){
         function click(elem){
           var ev = document.createEvent('MouseEvent');
           ev.initMouseEvent(
@@ -170,19 +213,22 @@ console.log("Beta Testing switch is on.");
             0, 0, 0, 0, /* coordinates */
             false, false, false, false, /* modifier keys */
             0 /*left*/, null
-          );
+          )
           elem.dispatchEvent(ev);
         };
-
-        var button = $("a:contains('TestFlight Beta Testing')")[1];
+        //get the TestFlight Beta Testing toggle button
+        var button = $("a[for=" + "testing-" + app_version + "]")[0];
         click(button);
-      });
+      }, app_version);
     }
     page.render("after-buttonclick.jpeg");
   }, 10000);
 }
 
-function fillForm(){
+function appInfoForm(){
+  setTimeout(function(){
+    page.render("Start_external_testing.jpeg");
+  }, 5000);
 }
 
 page.onLoadFinished = function(status){
@@ -191,14 +237,13 @@ page.onLoadFinished = function(status){
       navToMyApps();
       break;
     case "appId":
-      goToApp();
+      navToApp();
       break;
     case "preRelease":
-      preRelease();
+      navToPreRelease();
       break;
     case "betaReview":
-      //debugging
-      betaReview();
+      checkBetaReview();
       break;
     default:
       state = signIn();
@@ -206,6 +251,4 @@ page.onLoadFinished = function(status){
   }
 };
 
-
-
-
+page.open("https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa");
