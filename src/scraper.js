@@ -21,7 +21,7 @@ page.onError = function(msg, trace) {
 };
 
 function waitFor(testFx, onReady, timeOutMillis) {
-  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 7000, //< Default Max Timout is 7s
+  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 10000, //< Default Max Timout is 7s
     start = new Date().getTime(),
     condition = false,
     interval = setInterval(function() {
@@ -138,13 +138,12 @@ function checkBetaReview(){
   // if on proceed, if off turn on
   console.log("Currently on: " + page.url + " in betaReview()");
   waitFor(function(){
-    return page.evaluate(function(){
-      //wait for page to load
-      return $("a:last").is(":visible");
-    });
+    return evaluate(page, function(app_version){
+      return $("a:contains('TestFlight Beta Testing')")[0];
+    }, app_version) !== null;
   },function(){
     var betaTestingOn = evaluate(page, function(app_version){
-      return $(":input:checkbox[id=" + "'testing-" + app_version + "'']").prop('checked');
+      return $(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked');
     }, app_version);
     console.log("Beta Testing is on:" + betaTestingOn);
     if(betaTestingOn){
