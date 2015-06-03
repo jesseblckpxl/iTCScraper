@@ -21,7 +21,7 @@ page.onError = function(msg, trace) {
 };
 
 function waitFor(testFx, onReady, timeOutMillis) {
-  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 5000, //< Default Max Timout is 5s
+  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 7000, //< Default Max Timout is 7s
     start = new Date().getTime(),
     condition = false,
     interval = setInterval(function() {
@@ -41,7 +41,7 @@ function waitFor(testFx, onReady, timeOutMillis) {
         }
       }
     }, 250); //< repeat check every 250ms
-};
+}
 
 function signIn(){
   //Get iTunes connect username and password through command line arguments
@@ -85,9 +85,7 @@ function signIn(){
 
 // Navigate to Apps page
 function navToMyApps(){
-  //debugging
   console.log("Currently on: " + page.url + " in navToMyApps.");
-
   state = evaluate(page, function(){
     window.location.href = "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/ng/app";
     return "appId";
@@ -95,31 +93,35 @@ function navToMyApps(){
 }
 
 function navToApp(){
-  // debugging
   console.log("Currently on: " + page.url + " in goToApp");
-  // Setting time out to wait for page to finish loading so that we can find the right element and link
-  // TO-DO: write function to check for all elements to have loaded instead of using setTimeOut
-  setTimeout(function(){
-    page.render("appslist.jpg");
-    state = evaluate(page, function(app_name){
-      var app = "'" + app_name + "'";
-      var el = $("a:contains(" + app + ")")[0];
-      if (el != null){
-        window.location.href = el.href;
-      }
-      return "preRelease";
-    }, app_name);
-  }, 10000);
+  waitFor(function(){
+    //make sure that elements for apps have loaded
+    return page.evaluate(function(){
+      return $("#manage-your-apps-search").is(":visible");
+    });
+  },
+    function(){
+      state = evaluate(page,function(app_name){
+        var app = "'" + app_name + "'";
+        var el = $("a:contains(" + app + ")")[0];
+        if (el != null){
+          window.location.href = el.href;
+        }
+        return "preRelease";
+      },app_name);
+    }
+  );
 }
 
 function navToPreRelease(){
-  //debugging
   console.log("Currently on: " + page.url + " in preRelease");
-
-  setTimeout(function(){
-    //debugging
-    page.render("ontheapp.jpg");
-
+  waitFor(function(){
+    //Check that page has loaded
+    return page.evaluate(function(){
+      return $(".overview").is(":visible");
+    });
+  }, function(){
+    page.render("on-the-app.jpg");
     state = page.evaluate(function(){
       var preReleaseTab = $("a:contains('Prerelease')")[0];
       if (preReleaseTab != null){
@@ -127,60 +129,26 @@ function navToPreRelease(){
       }
       return "betaReview";
     });
-  }, 5000);
+  });
 }
 
+//TO-DO: check whether or not more than 1 version can be submitted to beta review at a time (probably not?).
 function checkBetaReview(){
   // check if test flight beta testing button is on or off
   // if on proceed, if off turn on
   console.log("Currently on: " + page.url + " in betaReview()");
-
-  //check versions? should i have functionality to release older versions? or should i default to
-  //releasing the latest version
-
-  //click on submit to beta app review  --> this takes us to the page that has all the information. assume filled out? or allow
-  //user to fill out via CLI?
-  setTimeout(function(){
-    page.render("button.jpeg");
-
-/*
-var betaTesting = page.evaluate(function(){
-var el = document.getElementsByClassName("bt-internal")[1];
-return el;
-});
-
-console.log(betaTesting.textContent);
-var str = betaTesting.textContent;
-var index = str.indexOf("Inactive");
-console.log(index);
-
-if (index > -1){
-console.log("Beta Testing switch is off, turning on");
-//toggle on testflight beta testing
-var betaButton = page.evaluate(function(){
-var el = document.getElementById("testing-2_0");
-return el;
-});
-
-page.sendEvent('click', betaButton.offsetLeft, betaButton.offsetTop, 'left');
-
-
-}else{
-console.log("Beta Testing switch is on.");
-//hit submit to beta app review link?
-}
-*/
-
+  waitFor(function(){
+    return page.evaluate(function(){
+      //wait for page to load
+      return $("a:last").is(":visible");
+    });
+  },function(){
     var betaTestingOn = evaluate(page, function(app_version){
-      //Check the TestFlight Beta Testing button
-      var el = $(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked');
-      return el;
+      return $(":input:checkbox[id=" + "'testing-" + app_version + "'']").prop('checked');
     }, app_version);
-
-    console.log(betaTestingOn);
-
+    console.log("Beta Testing is on:" + betaTestingOn);
     if(betaTestingOn){
-      console.log("Beta testing is on");
+      console.log("Clicking submit for review link.");
       //click on Submit For Beta App Review button
       page.evaluate(function(){
         var submit = $("a:contains('Submit for Beta App Review')")[0];
@@ -201,8 +169,8 @@ console.log("Beta Testing switch is on.");
         }
       });
     }else{
-      console.log("Beta testing is off.");
-      //Turn on TestFlight Beta Testing
+      console.log("Turning beta testing on.");
+      //Turn on Testflight beta testing
       evaluate(page, function(app_version){
         function click(elem){
           var ev = document.createEvent('MouseEvent');
@@ -217,12 +185,11 @@ console.log("Beta Testing switch is on.");
           elem.dispatchEvent(ev);
         };
         //get the TestFlight Beta Testing toggle button
-        var button = $("a[for=" + "testing-" + app_version + "]")[0];
-        click(button);
+        var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
+        click(tfButton);
       }, app_version);
     }
-    page.render("after-buttonclick.jpeg");
-  }, 10000);
+  });
 }
 
 function appInfoForm(){
