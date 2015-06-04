@@ -25,19 +25,19 @@ function waitFor(testFx, onReady, timeOutMillis) {
     start = new Date().getTime(),
     condition = false,
     interval = setInterval(function() {
-      if ( (new Date().getTime() - start < maxtimeOutMillis) && !condition ) {
+      if( (new Date().getTime() - start < maxtimeOutMillis) && !condition ) {
         // If not time-out yet and condition not yet fulfilled
         condition = (typeof(testFx) === "string" ? eval(testFx) : testFx()); //< defensive code
-      } else {
+      }else{
         if(!condition) {
           // If condition still not fulfilled (timeout but condition is 'false')
           console.log("'waitFor()' timeout");
           phantom.exit(1);
-        } else {
-            // Condition fulfilled (timeout and/or condition is 'true')
-            console.log("'waitFor()' finished in " + (new Date().getTime() - start) + "ms.");
-            typeof(onReady) === "string" ? eval(onReady) : onReady(); //< Do what it's supposed to do once the condition is fulfilled
-            clearInterval(interval); //< Stop this interval
+        }else{
+          // Condition fulfilled (timeout and/or condition is 'true')
+          console.log("'waitFor()' finished in " + (new Date().getTime() - start) + "ms.");
+          typeof(onReady) === "string" ? eval(onReady) : onReady(); //< Do what it's supposed to do once the condition is fulfilled
+          clearInterval(interval); //< Stop this interval
         }
       }
     }, 250); //< repeat check every 250ms
@@ -97,9 +97,9 @@ function navToApp(){
   waitFor(function(){
     //make sure that elements for apps have loaded
     return page.evaluate(function(){
-      return $("#manage-your-apps-search").is(":visible");
-    });
-  },
+        return $("#manage-your-apps-search").is(":visible");
+      });
+    },
     function(){
       state = evaluate(page,function(app_name){
         var app = "'" + app_name + "'";
@@ -115,80 +115,108 @@ function navToApp(){
 
 function navToPreRelease(){
   console.log("Currently on: " + page.url + " in preRelease");
-  waitFor(function(){
-    //Check that page has loaded
-    return page.evaluate(function(){
-      return $(".overview").is(":visible");
-    });
-  }, function(){
-    page.render("on-the-app.jpg");
-    state = page.evaluate(function(){
-      var preReleaseTab = $("a:contains('Prerelease')")[0];
-      if (preReleaseTab != null){
-        window.location.href = preReleaseTab.href;
-      }
-      return "betaReview";
-    });
-  });
+  waitFor(
+    function(){
+      //Check that page has loaded
+      return page.evaluate(function(){
+        return $(".overview").is(":visible");
+      });
+    },
+    function(){
+      page.render("on-the-app.jpg");
+      state = page.evaluate(function(){
+        var preReleaseTab = $("a:contains('Prerelease')")[0];
+        if (preReleaseTab != null){
+          window.location.href = preReleaseTab.href;
+        }
+        return "betaReview";
+      });
+    }
+  );
 }
 
-//TO-DO: check whether or not more than 1 version can be submitted to beta review at a time (probably not?).
 function checkBetaReview(){
   // check if test flight beta testing button is on or off
   // if on proceed, if off turn on
   console.log("Currently on: " + page.url + " in betaReview()");
-  waitFor(function(){
-    return evaluate(page, function(app_version){
-      return $("a:contains('TestFlight Beta Testing')")[0];
-    }, app_version) !== null;
-  },function(){
-    var betaTestingOn = evaluate(page, function(app_version){
-      return $(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked');
-    }, app_version);
-    console.log("Beta Testing is on:" + betaTestingOn);
-    if(betaTestingOn){
-      console.log("Clicking submit for review link.");
-      //click on Submit For Beta App Review button
-      page.evaluate(function(){
-        var submit = $("a:contains('Submit for Beta App Review')")[0];
-        if (submit !== null){
+  waitFor(
+    function(){
+      return evaluate(page, function(app_version){
+        return $("a:contains('TestFlight Beta Testing')")[0];
+      }, app_version) !== null;
+    },
+    function(){
+      //Check to see if Testflight Beta Testing is on for the desired version
+      var betaTestingOn = evaluate(page, function(app_version){
+        return $(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked');
+      }, app_version);
+      console.log("Beta Testing is on: " + betaTestingOn);
+      if (!betaTestingOn){
+        console.log("Turning on Testflight beta testing");
+        page.render("testflight-off.jpg");
+        evaluate(page, function(app_version){
           function click(elem){
             var ev = document.createEvent('MouseEvent');
             ev.initMouseEvent(
-              'click',
+             'click',
               true /* bubble */, true /* cancelable */,
               window, null,
               0, 0, 0, 0, /* coordinates */
               false, false, false, false, /* modifier keys */
               0 /*left*/, null
-            );
+            )
             elem.dispatchEvent(ev);
-          }
-          click(submit);
+          };
+          //get the TestFlight Beta Testing toggle button
+          var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
+          click(tfButton);
+        }, app_version);
+      }
+      console.log("Clicking submit for review link.");
+      //click on Submit For Beta App Review button
+      waitFor(
+        function(){
+          return page.evaluate(function(){
+            return $("a:contains('Submit for Beta App Review')").is(":visible");
+          });
+        },
+        function(){
+          page.render("submit-for-beta-link-activated.jpg");
+          page.evaluate(function(){
+            //No need to check for version since only 1 version can be active for Testflight at a time.
+            var submit = $("a:contains('Submit for Beta App Review')")[0];
+            if (submit !== null){
+              function click(elem){
+                var ev = document.createEvent('MouseEvent');
+                ev.initMouseEvent(
+                  'click',
+                  true /* bubble */, true /* cancelable */,
+                  window, null,
+                  0, 0, 0, 0, /* coordinates */
+                  false, false, false, false, /* modifier keys */
+                  0 /*left*/, null
+                );
+                elem.dispatchEvent(ev);
+              }
+              click(submit);
+            }
+          });
         }
-      });
-    }else{
-      console.log("Turning beta testing on.");
-      //Turn on Testflight beta testing
-      evaluate(page, function(app_version){
-        function click(elem){
-          var ev = document.createEvent('MouseEvent');
-          ev.initMouseEvent(
-           'click',
-            true /* bubble */, true /* cancelable */,
-            window, null,
-            0, 0, 0, 0, /* coordinates */
-            false, false, false, false, /* modifier keys */
-            0 /*left*/, null
-          )
-          elem.dispatchEvent(ev);
-        };
-        //get the TestFlight Beta Testing toggle button
-        var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
-        click(tfButton);
-      }, app_version);
+      );
+      //Now on Build Information section for app
+      waitFor(
+        function(){
+          //wait for page to load
+          return page.evaluate(function(){
+            return $(".fileIconWrapper").is(":visible");
+          });
+        },
+        function(){
+          page.render("build-info.jpg");
+        }
+      );
     }
-  });
+  );
 }
 
 function appInfoForm(){
