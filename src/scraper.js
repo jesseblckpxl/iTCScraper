@@ -74,11 +74,8 @@ function signIn(){
       return account_name.value;
     }, user_name, user_password);
   }
-
-  //debugging purposes
   console.log(name);
-
-  // add condition to check if sign in was successful use window.location.href to verify?
+  //TO-DO: add check for login success/failure
   state = "apps";
   return state;
 }
@@ -93,20 +90,17 @@ function navToMyApps(){
 }
 
 function navToApp(){
-  console.log("Currently on: " + page.url + " in goToApp");
+  console.log("Currently on: " + page.url + " in navToApp");
   waitFor(function(){
     //make sure that elements for apps have loaded
     return page.evaluate(function(){
-        return $("#manage-your-apps-search").is(":visible");
+        return $("#session-menu").is(":visible");
       });
     },
     function(){
       state = evaluate(page,function(app_name){
-        var app = "'" + app_name + "'";
-        var el = $("a:contains(" + app + ")")[0];
-        if (el != null){
-          window.location.href = el.href;
-        }
+        var el = $("a:contains(" + app_name + ")")[0];
+        window.location.href = el.href;
         return "preRelease";
       },app_name);
     }
