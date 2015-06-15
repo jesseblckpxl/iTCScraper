@@ -1,5 +1,8 @@
 var page = require( 'webpage' ).create();
 var system = require('system');
+var yaml = require('js-yaml');
+var fs = require('fs');
+var util = require('util');
 var state = "login";
 
 //versions should use underscore , e.g. 2.0.1 -> 2_0_1
@@ -148,6 +151,11 @@ function checkBetaReview(){
       if (!betaTestingOn){
         console.log("Turning on Testflight beta testing");
         page.render("testflight-off.jpg");
+        //Check if another version if enabled for beta testing, if enabled need to handle 'are you sure' pop-up
+        var otherVersionOn = page.evaluate(function(){
+          return $(":input:checkbox").prop('checked');
+        });
+        console.log("There is another version in beta testing: " + otherVersionOn);
         evaluate(page, function(app_version){
           function click(elem){
             var ev = document.createEvent('MouseEvent');
@@ -164,15 +172,34 @@ function checkBetaReview(){
           //get the TestFlight Beta Testing toggle button
           var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
           click(tfButton);
-        }, app_version);
+        }
+        if(otherVersionOn){
+          evaluate(page, function(){
+            function click(elem){
+            var ev = document.createEvent('MouseEvent');
+            ev.initMouseEvent(
+             'click',
+              true /* bubble */, true /* cancelable */,
+              window, null,
+              0, 0, 0, 0, /* coordinates */
+              false, false, false, false, /* modifier keys */
+              0 /*left*/, null
+            )
+            elem.dispatchEvent(ev);
+            };
+            //Click start on pop-up
+            var start = $("a:contains('Start')")[0];
+            click(start);
+          });
+        }
       }
       console.log("Clicking submit for review link.");
       //click on Submit For Beta App Review button
       waitFor(
         function(){
-          return page.evaluate(function(){
-            return $("a:contains('Submit for Beta App Review')").is(":visible");
-          });
+          return evaluate(page, function(app_version){
+            return ($(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked'));
+          }, app_version);
         },
         function(){
           page.render("submit-for-beta-link-activated.jpg");
@@ -195,28 +222,34 @@ function checkBetaReview(){
               click(submit);
             }
           });
+          //Now on Build Information section for app
+          waitFor(
+            function(){
+            //wait for page to load
+              return page.evaluate(function(){
+                return $(".fileIconWrapper").is(":visible");
+              });
+            },
+            function(){
+              page.render("build-info.jpg");
+              fillAppInfo();
+            }
+          );
         }
-      );
-      //Now on Build Information section for app
-      waitFor(
-        function(){
-          //wait for page to load
-          return page.evaluate(function(){
-            return $(".fileIconWrapper").is(":visible");
-          });
-        },
-        function(){
-          page.render("build-info.jpg");
-        }
-      );
+      , 25000);
     }
   );
 }
 
-function appInfoForm(){
-  setTimeout(function(){
-    page.render("Start_external_testing.jpeg");
-  }, 5000);
+function fillAppInfo(){
+  try{
+    var file = fs.read('test.yml','utf8');
+    var doc = yaml.safeLoad(file);
+    console.log(util.inspect(doc, false, 10, true));
+  }catch(e){
+    console.log(e);
+  }
+  phantom.exit();
 }
 
 page.onLoadFinished = function(status){
