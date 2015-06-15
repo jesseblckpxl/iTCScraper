@@ -21,7 +21,7 @@ page.onError = function(msg, trace) {
 };
 
 function waitFor(testFx, onReady, timeOutMillis) {
-  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 10000, //< Default Max Timout is 7s
+  var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 15000, //< Default Max Timout is 15s
     start = new Date().getTime(),
     condition = false,
     interval = setInterval(function() {
