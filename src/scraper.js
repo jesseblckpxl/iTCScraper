@@ -149,11 +149,17 @@ function checkBetaReview(){
       }, app_version);
       console.log("Beta Testing is on: " + betaTestingOn);
       if (!betaTestingOn){
-        console.log("Turning on Testflight beta testing");
         page.render("testflight-off.jpg");
         //Check if another version if enabled for beta testing, if enabled need to handle 'are you sure' pop-up
         var otherVersionOn = page.evaluate(function(){
-          return $(":input:checkbox").prop('checked');
+          var on = false;
+          var versions = $(":input:checkbox");
+          for (i = 0; i < versions.length; i++){
+            if (versions[i].checked){
+              on = true;
+            }
+          }
+          return on;
         });
         console.log("There is another version in beta testing: " + otherVersionOn);
         evaluate(page, function(app_version){
@@ -172,19 +178,21 @@ function checkBetaReview(){
           //get the TestFlight Beta Testing toggle button
           var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
           click(tfButton);
-        }
+        },app_version);
         if(otherVersionOn){
+          console.log("Handling pop-up.");
+          page.render("pop-up.jpg");
           evaluate(page, function(){
             function click(elem){
             var ev = document.createEvent('MouseEvent');
             ev.initMouseEvent(
              'click',
-              true /* bubble */, true /* cancelable */,
+              true , true ,
               window, null,
-              0, 0, 0, 0, /* coordinates */
-              false, false, false, false, /* modifier keys */
-              0 /*left*/, null
-            )
+              0, 0, 0, 0,
+              false, false, false, false,
+              0 , null
+            );
             elem.dispatchEvent(ev);
             };
             //Click start on pop-up
