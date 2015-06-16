@@ -70,7 +70,6 @@ function signIn(){
   for (var i = 1; i < system.args.length; i++){
     if (i == 1){
       user_name = system.args[1];
-      //debugging
       console.log(user_name);
     }else if (i == 2){
       user_password = system.args[2];
@@ -115,16 +114,19 @@ function navToApp(){
   console.log("Currently on: " + page.url + " in navToApp");
   waitFor(function(){
     //make sure that elements for apps have loaded
-    return page.evaluate(function(){
-        return $("#session-menu").is(":visible");
-      });
+    return evaluate(page, function(app_name){
+        return $("div:contains(" + app_name + ")").is(":visible");
+      }, app_name);
     },
     function(){
       state = evaluate(page,function(app_name){
         var el = $("a:contains(" + app_name + ")")[0];
-        //TO-DO: add waitFor for the element visibility
-        window.location.href = el.href;
-        return "preRelease";
+        if (typeof el != null){
+          window.location.href = el.href;
+          return "preRelease";
+        }else{
+          throw new Error("Could not find <a> element that contains: " + app_name );
+        }
       },app_name);
     }
   );
@@ -184,7 +186,7 @@ function checkBetaReview(){
         console.log("There is another version in beta testing: " + otherVersionOn);
         var tFBtn = "a[for=testing-" + app_version + "]";
         click(page, tFBtn, 0);
-        if(otherVersionOn){
+        if (otherVersionOn) {
           console.log("Handling pop-up.");
           page.render("pop-up.jpg");
           var popUpBtn = "a:contains('Start')";
