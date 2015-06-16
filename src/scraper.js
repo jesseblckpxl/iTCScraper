@@ -136,9 +136,8 @@ function prerelease(){
   console.log("Currently on: " + page.url + " in prerelease()");
   waitFor(
     function(){
-      //Check that page has loaded
       return page.evaluate(function(){
-        return $(".overview").is(":visible");
+        return $("a:contains('Prerelease')").is(":visible"); // wait for prerelease tab to become visible.
       });
     },
     function(){
@@ -243,9 +242,9 @@ function fillAppInfo(){
             if (formLang.indexOf(language) < 0){
               console.log("Clicking dropdown menu to change language to: " + language);
               var langbtn = "td:contains(" + language + ")";
-              click(page, langbtn, 0); //TO-DO: handle not finding button
+              click(page, langbtn, 0); //TO-DO: handle not finding language in the dropdown menu
+              page.render("langchange-"+ language + ".jpg");
             }
-            page.render("language-change.jpg");
             //Get app information
             var whatToTest = buildInfo[language]["What_to_Test"];
             var appDescript = buildInfo[language]["App_Description"];
@@ -284,9 +283,8 @@ function fillAppInfo(){
       function(){
         waitFor(
           function(){
-            //Wait for Submit button to become enabled.
             return page.evaluate(function(){
-              return !($("a:contains('Submit')").is(":disabled"));
+              return !($("a:contains('Submit')").is(":disabled")); // wait for submit button to become enabled.
             });
           },
           function(){
