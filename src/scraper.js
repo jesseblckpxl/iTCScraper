@@ -23,6 +23,25 @@ page.onError = function(msg, trace) {
   }
 };
 
+function click(page, selector, index){
+  evaluate(page, function(selector, index){
+    function click(elem){
+      var ev = document.createEvent('MouseEvent');
+      ev.initMouseEvent(
+        'click',
+        true /* bubble */, true /* cancelable */,
+        window, null,
+        0, 0, 0, 0, /* coordinates */
+        false, false, false, false, /* modifier keys */
+        0 /*left*/, null
+      )
+      elem.dispatchEvent(ev);
+    };
+    var el = $(selector)[index];
+    click(el);
+  }, selector, index);
+}
+
 function waitFor(testFx, onReady, timeOutMillis) {
   var maxtimeOutMillis = timeOutMillis ? timeOutMillis : 15000, //< Default Max Timout is 15s
     start = new Date().getTime(),
@@ -103,6 +122,7 @@ function navToApp(){
     function(){
       state = evaluate(page,function(app_name){
         var el = $("a:contains(" + app_name + ")")[0];
+        //TO-DO: add waitFor for the element visibility
         window.location.href = el.href;
         return "preRelease";
       },app_name);
@@ -162,85 +182,50 @@ function checkBetaReview(){
           return on;
         });
         console.log("There is another version in beta testing: " + otherVersionOn);
-        evaluate(page, function(app_version){
-          function click(elem){
-            var ev = document.createEvent('MouseEvent');
-            ev.initMouseEvent(
-             'click',
-              true /* bubble */, true /* cancelable */,
-              window, null,
-              0, 0, 0, 0, /* coordinates */
-              false, false, false, false, /* modifier keys */
-              0 /*left*/, null
-            )
-            elem.dispatchEvent(ev);
-          };
-          //get the TestFlight Beta Testing toggle button
-          var tfButton = $("a[for=" + "testing-" + app_version + "]")[0];
-          click(tfButton);
-        },app_version);
+        var tFBtn = "a[for=testing-" + app_version + "]";
+        click(page, tFBtn, 0);
         if(otherVersionOn){
           console.log("Handling pop-up.");
           page.render("pop-up.jpg");
-          evaluate(page, function(){
-            function click(elem){
-            var ev = document.createEvent('MouseEvent');
-            ev.initMouseEvent(
-             'click',
-              true , true ,
-              window, null,
-              0, 0, 0, 0,
-              false, false, false, false,
-              0 , null
-            );
-            elem.dispatchEvent(ev);
-            };
-            //Click start on pop-up
-            var start = $("a:contains('Start')")[0];
-            click(start);
-          });
+          var popUpBtn = "a:contains('Start')";
+          click(page, popUpBtn, 0);
         }
       }
-      console.log("Clicking submit for review link.");
       //click on Submit For Beta App Review button
       waitFor(
         function(){
+          page.render("pop-up-clicked-hopefully.jpg");
           return evaluate(page, function(app_version){
             return ($(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked'));
           }, app_version);
         },
         function(){
           page.render("submit-for-beta-link-activated.jpg");
-          page.evaluate(function(){
-            //No need to check for version since only 1 version can be active for Testflight at a time.
-            var submit = $("a:contains('Submit for Beta App Review')")[0];
-            if (submit !== null){
-              function click(elem){
-                var ev = document.createEvent('MouseEvent');
-                ev.initMouseEvent(
-                  'click',
-                  true /* bubble */, true /* cancelable */,
-                  window, null,
-                  0, 0, 0, 0, /* coordinates */
-                  false, false, false, false, /* modifier keys */
-                  0 /*left*/, null
-                );
-                elem.dispatchEvent(ev);
-              }
-              click(submit);
-            }
-          });
-          //Now on Build Information section for app
+          //TO-DO: add waitFor to check for Submit for Beta App Review to become visible?
           waitFor(
             function(){
-            //wait for page to load
               return page.evaluate(function(){
-                return $(".fileIconWrapper").is(":visible");
-              });
+                return $("a:contains('Submit for Beta App Review')").is(":visible");
+              })
             },
             function(){
-              page.render("build-info.jpg");
-              fillAppInfo();
+              console.log("Clicking submit for review.");
+              var submitBtn = "a:contains('Submit for Beta App Review')";
+              click(page, submitBtn, 0);
+              waitFor(
+                function(){
+                  //wait for page to load
+                  page.render("are-we-actually-on-the-build-info-page.jpg");
+                  console.log("waiting here");
+                  return page.evaluate(function(){
+                    return $(".fileIconWrapper").is(":visible");
+                  });
+                },
+                function(){
+                  page.render("build-info.jpg");
+                  fillAppInfo();
+                }
+              , 20000);
             }
           );
         }
