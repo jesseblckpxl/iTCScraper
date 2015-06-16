@@ -236,49 +236,70 @@ function checkBetaReview(){
 
 function fillAppInfo(){
   try{
-    var file = fs.read('test.yml','utf8');
-    var buildInfo = yaml.safeLoad(file);
-    console.log(util.inspect(buildInfo, false, 10, true));
-    for (var language in buildInfo){
-      if (buildInfo.hasOwnProperty(language)){
-        console.log(language);
-        //Get app information
-        var whatToTest = buildInfo[language]["What_to_Test"];
-        var appDescript = buildInfo[language]["App_Description"];
-        var notes = buildInfo[language]["Notes"];
-        var feedbackEmail = buildInfo[language]["Feedback_Email"];
-        var marketingURL = buildInfo[language]["Marketing_URL"];
-        var privacyURL = buildInfo[language]["Privacy_Policy_URL"];
-        var firstName = buildInfo[language]["Contact_First_Name"];
-        var lastName = buildInfo[language]["Contact_Last_Name"];
-        var phone = buildInfo[language]["Contact_Phone_Number"];
-        var email = buildInfo[language]["Contact_Email"];
-        var demoUser = buildInfo[language]["Demo_User_Name"];
-        var demoPassword = buildInfo[language]["Demo_Password"];
-        //Fill out TestFlight Beta Information
-        evaluate(page, function(whatToTest, appDescript, notes, feedbackEmail,
-          marketingURL, privacyURL, firstName, lastName, phone, email, demoUser, demoPassword){
-          $("textarea")[0].value = whatToTest;
-          $("textarea")[1].value = appDescript;
-          $("textarea")[2].value = notes;
-          $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].feedbackEmail.value']")[0].value = feedbackEmail;
-          $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].marketingUrl.value']")[0].value = marketingURL;
-          $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].privacyPolicyUrl.value']")[0].value = privacyURL;
-          $("input[ng-model='submitForReviewData.testInfo.reviewFirstName.value']")[0].value = firstName;
-          $("input[ng-model='submitForReviewData.testInfo.reviewLastName.value']")[0].value = lastName;
-          $("input[ng-model='submitForReviewData.testInfo.reviewPhone.value']")[0].value = phone;
-          $("input[ng-model='submitForReviewData.testInfo.reviewEmail.value']")[0].value = email;
-          $("input[ng-model='submitForReviewData.testInfo.reviewUserName.value']")[0].value = demoUser;
-          $("input[ng-model='submitForReviewData.testInfo.reviewPassword.value']")[0].value = demoPassword;
-        }, whatToTest, appDescript, notes, feedbackEmail, marketingURL, privacyURL,
-        firstName, lastName, phone, email, demoUser, demoPassword);
-        page.render("buildinfo-filled.jpg");
+    waitFor(
+      function(){
+        var file = fs.read('test.yml','utf8');
+        var buildInfo = yaml.safeLoad(file);
+        console.log(util.inspect(buildInfo, false, 10, true));
+        for (var language in buildInfo){
+          if (buildInfo.hasOwnProperty(language)){
+            console.log(language);
+            //Get app information
+            var whatToTest = buildInfo[language]."What_to_Test";
+            var appDescript = buildInfo[language]."App_Description";
+            var notes = buildInfo[language]."Notes";
+            var feedbackEmail = buildInfo[language]."Feedback_Email";
+            var marketingURL = buildInfo[language]."Marketing_URL";
+            var privacyURL = buildInfo[language]."Privacy_Policy_URL";
+            var firstName = buildInfo[language]."Contact_First_Name";
+            var lastName = buildInfo[language]."Contact_Last_Name";
+            var phone = buildInfo[language]."Contact_Phone_Number";
+            var email = buildInfo[language]."Contact_Email";
+            var demoUser = buildInfo[language]."Demo_User_Name";
+            var demoPassword = buildInfo[language]."Demo_Password";
+            //Fill out TestFlight Beta Information
+            evaluate(page, function(whatToTest, appDescript, notes, feedbackEmail,
+              marketingURL, privacyURL, firstName, lastName, phone, email, demoUser, demoPassword){
+              $("textarea")[0].value = whatToTest;
+              $("textarea")[1].value = appDescript;
+              $("textarea")[2].value = notes;
+              $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].feedbackEmail.value']")[0].value = feedbackEmail;
+              $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].marketingUrl.value']")[0].value = marketingURL;
+              $("input[ng-model='submitForReviewData.testInfo.details[currentLoc].privacyPolicyUrl.value']")[0].value = privacyURL;
+              $("input[ng-model='submitForReviewData.testInfo.reviewFirstName.value']")[0].value = firstName;
+              $("input[ng-model='submitForReviewData.testInfo.reviewLastName.value']")[0].value = lastName;
+              $("input[ng-model='submitForReviewData.testInfo.reviewPhone.value']")[0].value = phone;
+              $("input[ng-model='submitForReviewData.testInfo.reviewEmail.value']")[0].value = email;
+              $("input[ng-model='submitForReviewData.testInfo.reviewUserName.value']")[0].value = demoUser;
+              $("input[ng-model='submitForReviewData.testInfo.reviewPassword.value']")[0].value = demoPassword;
+            }, whatToTest, appDescript, notes, feedbackEmail, marketingURL, privacyURL,
+            firstName, lastName, phone, email, demoUser, demoPassword);
+            page.render("buildinfo-filled.jpg");
+          }
+        }
+        return true;
+      },
+      function(){
+        waitFor(
+          function(){
+            //Wait for Submit button to become enabled.
+            return page.evaluate(function(){
+              return !($("a:contains('Submit')").is(":disabled"));
+            });
+          },
+          function(){
+            var submit = "a:contains('Submit')";
+            click(page, submit, 0);
+            page.render("clicked-on-submit.jpg");
+          }
+        );
+        return state = "compliance";
       }
-    }
+    );
   }catch(e){
     console.log(e);
+    phantom.exit();
   }
-  phantom.exit();
 }
 
 page.onLoadFinished = function(status){
@@ -295,6 +316,9 @@ page.onLoadFinished = function(status){
     case "betaReview":
       checkBetaReview();
       break;
+    case "compliance":
+      console.log("exiting...");
+      phantom.exit();
     default:
       state = signIn();
       console.log("State = default.");
