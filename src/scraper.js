@@ -288,7 +288,7 @@ function fillAppInfo(){
             });
           },
           function(){
-            var submit = "a:contains('Submit')";
+            var submit = "button:contains('Submit')";
             click(page, submit, 0);
             page.render("clicked-on-submit.jpg");
           }
@@ -319,6 +319,7 @@ page.onLoadFinished = function(status){
     case "compliance":
       console.log("exiting...");
       phantom.exit();
+      break;
     default:
       state = signIn();
       console.log("State = default.");
