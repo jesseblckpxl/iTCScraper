@@ -102,16 +102,16 @@ function signIn(){
 }
 
 // Navigate to Apps page
-function navToMyApps(){
-  console.log("Currently on: " + page.url + " in navToMyApps.");
+function myApps(){
+  console.log("Currently on: " + page.url + " in myApps().");
   state = evaluate(page, function(){
     window.location.href = "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/ng/app";
     return "appId";
   });
 }
 
-function navToApp(){
-  console.log("Currently on: " + page.url + " in navToApp");
+function goToApp(){
+  console.log("Currently on: " + page.url + " in goToApp()");
   waitFor(function(){
     //make sure that elements for apps have loaded
     return evaluate(page, function(app_name){
@@ -123,7 +123,7 @@ function navToApp(){
         var el = $("a:contains(" + app_name + ")")[0];
         if (typeof el != null){
           window.location.href = el.href;
-          return "preRelease";
+          return "prerelease";
         }else{
           throw new Error("Could not find <a> element that contains: " + app_name );
         }
@@ -132,8 +132,8 @@ function navToApp(){
   );
 }
 
-function navToPreRelease(){
-  console.log("Currently on: " + page.url + " in preRelease");
+function prerelease(){
+  console.log("Currently on: " + page.url + " in prerelease()");
   waitFor(
     function(){
       //Check that page has loaded
@@ -142,7 +142,6 @@ function navToPreRelease(){
       });
     },
     function(){
-      page.render("on-the-app.jpg");
       state = page.evaluate(function(){
         var preReleaseTab = $("a:contains('Prerelease')")[0];
         if (preReleaseTab != null){
@@ -154,7 +153,7 @@ function navToPreRelease(){
   );
 }
 
-function checkBetaReview(){
+function betaReview(){
   // check if test flight beta testing button is on or off
   // if on proceed, if off turn on
   console.log("Currently on: " + page.url + " in betaReview()");
@@ -171,7 +170,6 @@ function checkBetaReview(){
       }, app_version);
       console.log("Beta Testing is on: " + betaTestingOn);
       if (!betaTestingOn){
-        page.render("testflight-off.jpg");
         //Check if another version if enabled for beta testing, if enabled need to handle 'are you sure' pop-up
         var otherVersionOn = page.evaluate(function(){
           var on = false;
@@ -188,7 +186,6 @@ function checkBetaReview(){
         click(page, tFBtn, 0);
         if (otherVersionOn) {
           console.log("Handling pop-up.");
-          page.render("pop-up.jpg");
           var popUpBtn = "a:contains('Start')";
           click(page, popUpBtn, 0);
         }
@@ -196,18 +193,16 @@ function checkBetaReview(){
       //click on Submit For Beta App Review button
       waitFor(
         function(){
-          page.render("pop-up-clicked-hopefully.jpg");
           return evaluate(page, function(app_version){
             return ($(":input:checkbox[id=" + "testing-" + app_version + "]").prop('checked'));
           }, app_version);
         },
         function(){
-          page.render("submit-for-beta-link-activated.jpg");
           waitFor(
             function(){
               return page.evaluate(function(){
                 return $("a:contains('Submit for Beta App Review')").is(":visible");
-              })
+              });
             },
             function(){
               console.log("Clicking submit for review.");
@@ -215,14 +210,12 @@ function checkBetaReview(){
               click(page, submitBtn, 0);
               waitFor(
                 function(){
-                  //wait for page to load
-                  page.render("are-we-actually-on-the-build-info-page.jpg");
+                  page.render("buildinfo-original.jpg")
                   return page.evaluate(function(){
                     return $(".fileIconWrapper").is(":visible");
                   });
                 },
                 function(){
-                  page.render("build-info.jpg");
                   fillAppInfo();
                 }
               , 20000);
@@ -244,19 +237,28 @@ function fillAppInfo(){
         for (var language in buildInfo){
           if (buildInfo.hasOwnProperty(language)){
             console.log(language);
+            var formLang = page.evaluate(function(){
+              return $("a[itc-pop-up-menu='applocalizations']").text();
+            });
+            if (formLang.indexOf(language) < 0){
+              console.log("Clicking dropdown menu to change language to: " + language);
+              var langbtn = "td:contains(" + language + ")";
+              click(page, langbtn, 0); //TO-DO: handle not finding button
+            }
+            page.render("language-change.jpg");
             //Get app information
-            var whatToTest = buildInfo[language]."What_to_Test";
-            var appDescript = buildInfo[language]."App_Description";
-            var notes = buildInfo[language]."Notes";
-            var feedbackEmail = buildInfo[language]."Feedback_Email";
-            var marketingURL = buildInfo[language]."Marketing_URL";
-            var privacyURL = buildInfo[language]."Privacy_Policy_URL";
-            var firstName = buildInfo[language]."Contact_First_Name";
-            var lastName = buildInfo[language]."Contact_Last_Name";
-            var phone = buildInfo[language]."Contact_Phone_Number";
-            var email = buildInfo[language]."Contact_Email";
-            var demoUser = buildInfo[language]."Demo_User_Name";
-            var demoPassword = buildInfo[language]."Demo_Password";
+            var whatToTest = buildInfo[language]["What_to_Test"];
+            var appDescript = buildInfo[language]["App_Description"];
+            var notes = buildInfo[language]["Notes"];
+            var feedbackEmail = buildInfo[language]["Feedback_Email"];
+            var marketingURL = buildInfo[language]["Marketing_URL"];
+            var privacyURL = buildInfo[language]["Privacy_Policy_URL"];
+            var firstName = buildInfo[language]["Contact_First_Name"];
+            var lastName = buildInfo[language]["Contact_Last_Name"];
+            var phone = buildInfo[language]["Contact_Phone_Number"];
+            var email = buildInfo[language]["Contact_Email"];
+            var demoUser = buildInfo[language]["Demo_User_Name"];
+            var demoPassword = buildInfo[language]["Demo_Password"];
             //Fill out TestFlight Beta Information
             evaluate(page, function(whatToTest, appDescript, notes, feedbackEmail,
               marketingURL, privacyURL, firstName, lastName, phone, email, demoUser, demoPassword){
@@ -274,7 +276,7 @@ function fillAppInfo(){
               $("input[ng-model='submitForReviewData.testInfo.reviewPassword.value']")[0].value = demoPassword;
             }, whatToTest, appDescript, notes, feedbackEmail, marketingURL, privacyURL,
             firstName, lastName, phone, email, demoUser, demoPassword);
-            page.render("buildinfo-filled.jpg");
+            page.render("buildinfo-filled-" + language + ".jpg");
           }
         }
         return true;
@@ -289,13 +291,13 @@ function fillAppInfo(){
           },
           function(){
             var submit = "button:contains('Submit')";
-            click(page, submit, 0);
+            //click(page, submit, 0);
             page.render("clicked-on-submit.jpg");
           }
         );
-        return state = "compliance";
       }
     );
+    return state = "compliance";
   }catch(e){
     console.log(e);
     phantom.exit();
@@ -305,16 +307,16 @@ function fillAppInfo(){
 page.onLoadFinished = function(status){
   switch (state){
     case "apps":
-      navToMyApps();
+      myApps();
       break;
     case "appId":
-      navToApp();
+      goToApp();
       break;
-    case "preRelease":
-      navToPreRelease();
+    case "prerelease":
+      prerelease();
       break;
     case "betaReview":
-      checkBetaReview();
+      betaReview();
       break;
     case "compliance":
       console.log("exiting...");
