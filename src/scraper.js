@@ -5,13 +5,15 @@ var fs = require('fs');
 var util = require('util');
 var state = "login";
 
-/*
-user_name: iTunesConnect username
-user_password: iTunesConnect password
-app_name: App name
-app_version: version to beta test, use underscore to separate digits, e.g. '2.0.1 -> 2_0_1'
-build_info: path to YAML file that contains build information for TestFlight beta information
-*/
+/***
+* Run: 'phantomjs scraper.js -u user@example.com -p password -n "Some App" -v 1_0_5 -f "~/path/to/file/testflight_appinfo.yml"
+* -- required --
+* user_name: -u, iTunesConnect username
+* user_password: -p, iTunesConnect password
+* app_name: -n, App name
+* app_version: -v, version to beta test, use underscore to separate digits, e.g. '2.0.1 -> 2_0_1'
+* build_info: -f, path to YAML file that contains build information for TestFlight beta information
+***/
 var user_name, user_password, app_name, app_version, build_info;
 
 function evaluate(page, func) {
@@ -73,19 +75,31 @@ function waitFor(testFx, onReady, timeOutMillis) {
 function signIn(){
   //Get iTunes connect username and password through command line arguments
   for (var i = 1; i < system.args.length; i++){
-    if (i == 1){
-      user_name = system.args[1];
-      console.log(user_name);
-    }else if (i == 2){
-      user_password = system.args[2];
-    }else if (i == 3){
-      app_name =system.args[3];
-      console.log(app_name);
-    }else if (i == 4){
-      app_version = system.args[4];
-      console.log(app_version);
-    }else if (i == 5){
-      build_info = system.args[5];
+    if(system.args[i][0] == "-"){
+      var value = null;
+      if (i + 1 < system.args.length){
+        value = system.args[i + 1];
+        console.log(value);
+      }
+      switch (system.args[i][1]){
+        case "u":
+          user_name = value;
+          break;
+        case "p":
+          user_password = value;
+          break;
+        case "n":
+          app_name = value;
+          break;
+        case "v":
+          app_version = value;
+          break;
+        case "f":
+          build_info = value;
+          break;
+      }
+    }else{
+      continue;
     }
   }
 
@@ -102,7 +116,6 @@ function signIn(){
       return account_name.value;
     }, user_name, user_password);
   }
-  console.log(name);
   //TO-DO: add check for login success/failure
   return state = "apps";
 }
