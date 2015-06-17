@@ -5,7 +5,12 @@ var fs = require('fs');
 var util = require('util');
 var state = "login";
 
-//versions should use underscore , e.g. 2.0.1 -> 2_0_1
+/*
+user_name: iTunesConnect username
+user_password: iTunesConnect password
+app_name: App name
+app_version: version to beta test, use underscore to separate digits, e.g. '2.0.1 -> 2_0_1'
+*/
 var user_name, user_password, app_name, app_version;
 
 function evaluate(page, func) {
@@ -14,32 +19,31 @@ function evaluate(page, func) {
   return page.evaluate(fn);
 }
 
-page.onError = function(msg, trace) {
-  console.log("LOGGING ERROR \n" +  msg);
-  if (trace && trace.length){
-    trace.forEach(function(t){
-      console.log("trace: " + t.file + ": " + t.line + " " + (t.function ? t.function : "") );
-    });
-  }
-};
-
 function click(page, selector, index){
-  evaluate(page, function(selector, index){
-    function click(elem){
-      var ev = document.createEvent('MouseEvent');
-      ev.initMouseEvent(
-        'click',
-        true /* bubble */, true /* cancelable */,
-        window, null,
-        0, 0, 0, 0, /* coordinates */
-        false, false, false, false, /* modifier keys */
-        0 /*left*/, null
-      )
-      elem.dispatchEvent(ev);
-    };
-    var el = $(selector)[index];
-    click(el);
+  var clicked = evaluate(page, function(selector, index){
+    var result = {};
+    try{
+      function click(elem){
+        var ev = document.createEvent('MouseEvent');
+        ev.initMouseEvent(
+          'click',
+          true /* bubble */, true /* cancelable */,
+          window, null,
+          0, 0, 0, 0, /* coordinates */
+          false, false, false, false, /* modifier keys */
+          0 /*left*/, null
+        )
+        elem.dispatchEvent(ev);
+      };
+      var el = $(selector)[index];
+      click(el);
+      result.success = true;
+    }catch(e){
+      result.error = e;
+    }
+    return result;
   }, selector, index);
+  return clicked;
 }
 
 function waitFor(testFx, onReady, timeOutMillis) {
@@ -97,11 +101,10 @@ function signIn(){
   }
   console.log(name);
   //TO-DO: add check for login success/failure
-  state = "apps";
-  return state;
+  return state = "apps";
 }
 
-// Navigate to Apps page
+// Navigate to My Apps page
 function myApps(){
   console.log("Currently on: " + page.url + " in myApps().");
   state = evaluate(page, function(){
@@ -112,16 +115,16 @@ function myApps(){
 
 function goToApp(){
   console.log("Currently on: " + page.url + " in goToApp()");
-  waitFor(function(){
-    //make sure that elements for apps have loaded
-    return evaluate(page, function(app_name){
-        return $("div:contains(" + app_name + ")").is(":visible");
+  waitFor(
+    function(){
+      return evaluate(page, function(app_name){
+        return $("div:contains(" + app_name + ")").is(":visible"); //make sure app is in view
       }, app_name);
     },
     function(){
       state = evaluate(page,function(app_name){
         var el = $("a:contains(" + app_name + ")")[0];
-        if (typeof el != null){
+        if (el){
           window.location.href = el.href;
           return "prerelease";
         }else{
@@ -143,7 +146,7 @@ function prerelease(){
     function(){
       state = page.evaluate(function(){
         var preReleaseTab = $("a:contains('Prerelease')")[0];
-        if (preReleaseTab != null){
+        if (preReleaseTab){
           window.location.href = preReleaseTab.href;
         }
         return "betaReview";
@@ -171,21 +174,21 @@ function betaReview(){
       if (!betaTestingOn){
         //Check if another version if enabled for beta testing, if enabled need to handle 'are you sure' pop-up
         var otherVersionOn = page.evaluate(function(){
-          var on = false;
+          var betaOn = false;
           var versions = $(":input:checkbox");
           for (i = 0; i < versions.length; i++){
             if (versions[i].checked){
-              on = true;
+              betaOn = true;
             }
           }
-          return on;
+          return betaOn;
         });
         console.log("There is another version in beta testing: " + otherVersionOn);
         var tFBtn = "a[for=testing-" + app_version + "]";
         click(page, tFBtn, 0);
         if (otherVersionOn) {
           console.log("Handling pop-up.");
-          var popUpBtn = "a:contains('Start')";
+          var popUpBtn = "a:contains('Start')";  //click 'Start' on pop-up that asks for confirmation for testing new version
           click(page, popUpBtn, 0);
         }
       }
@@ -237,12 +240,15 @@ function fillAppInfo(){
           if (buildInfo.hasOwnProperty(language)){
             console.log(language);
             var formLang = page.evaluate(function(){
-              return $("a[itc-pop-up-menu='applocalizations']").text();
+              return $("a[itc-pop-up-menu='applocalizations']").text(); //get current form language
             });
-            if (formLang.indexOf(language) < 0){
+            if (formLang.indexOf(language) < 0){ // if not on correct language, change form language
               console.log("Clicking dropdown menu to change language to: " + language);
               var langbtn = "td:contains(" + language + ")";
-              click(page, langbtn, 0); //TO-DO: handle not finding language in the dropdown menu
+              var checkLang = click(page, langbtn, 0);  //toggle language drop down menu
+              if (checkLang.hasOwnProperty("error")){ //make sure language was found and clicked, if not log error
+                console.log(language + " not found in dropdown menu.");
+              }
               page.render("langchange-"+ language + ".jpg");
             }
             //Get app information
@@ -289,18 +295,27 @@ function fillAppInfo(){
           },
           function(){
             var submit = "button:contains('Submit')";
-            //click(page, submit, 0);
+            //click(page, submit, 0); // submit for beta app review
             page.render("clicked-on-submit.jpg");
           }
         );
       }
     );
-    return state = "compliance";
+    state = "compliance";
   }catch(e){
     console.log(e);
     phantom.exit();
   }
 }
+
+page.onError = function(msg, trace) {
+  console.log("LOGGING ERROR \n" +  msg);
+  if (trace && trace.length){
+    trace.forEach(function(t){
+      console.log("trace: " + t.file + ": " + t.line + " " + (t.function ? t.function : "") );
+    });
+  }
+};
 
 page.onLoadFinished = function(status){
   switch (state){
