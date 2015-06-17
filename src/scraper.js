@@ -248,6 +248,9 @@ function fillAppInfo(){
               var checkLang = click(page, langbtn, 0);  //toggle language drop down menu
               if (checkLang.hasOwnProperty("error")){ //make sure language was found and clicked, if not log error
                 console.log(language + " not found in dropdown menu.");
+                if (checkLang["error"].hasOwnProperty("stack")){
+                  console.log(checkLang["error"]["stack"]);
+                }
               }
               page.render("langchange-"+ language + ".jpg");
             }
