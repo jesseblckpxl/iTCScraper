@@ -10,8 +10,9 @@ user_name: iTunesConnect username
 user_password: iTunesConnect password
 app_name: App name
 app_version: version to beta test, use underscore to separate digits, e.g. '2.0.1 -> 2_0_1'
+build_info: path to YAML file that contains build information for TestFlight beta information
 */
-var user_name, user_password, app_name, app_version;
+var user_name, user_password, app_name, app_version, build_info;
 
 function evaluate(page, func) {
   var args = [].slice.call(arguments, 2);
@@ -83,6 +84,8 @@ function signIn(){
     }else if (i == 4){
       app_version = system.args[4];
       console.log(app_version);
+    }else if (i == 5){
+      build_info = system.args[5];
     }
   }
 
@@ -233,7 +236,7 @@ function fillAppInfo(){
   try{
     waitFor(
       function(){
-        var file = fs.read('test.yml','utf8');
+        var file = fs.read(build_info,'utf8');
         var buildInfo = yaml.safeLoad(file);
         console.log(util.inspect(buildInfo, false, 10, true));
         for (var language in buildInfo){
