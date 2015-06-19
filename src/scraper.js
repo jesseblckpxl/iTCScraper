@@ -79,7 +79,6 @@ function signIn(){
       var value = null;
       if (i + 1 < system.args.length){
         value = system.args[i + 1];
-        console.log(value);
       }
       switch (system.args[i][1]){
         case "u":
@@ -123,6 +122,10 @@ function signIn(){
 // Navigate to My Apps page
 function myApps(){
   console.log("Currently on: " + page.url + " in myApps().");
+  if (!(page.url = "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/ng/" || "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/ng") ){
+    console.log("Sign in failed, check username and password.");
+    phantom.exit();
+  }
   state = evaluate(page, function(){
     window.location.href = "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/ng/app";
     return "appId";
@@ -314,13 +317,23 @@ function fillAppInfo(){
           },
           function(){
             var submit = "button:contains('Submit')";
-            //click(page, submit, 0); // submit for beta app review
-            page.render("clicked-on-submit.jpg");
+            console.log("submitting for review");
+            click(page, submit, 0); // submit for beta app review
+            waitFor(
+              function(){
+                return page.evaluate(function(){
+                  return $("a:contains('Remove from Review')").is(":visible");
+                });
+              },
+              function(){
+                page.render("inreview.jpg");
+                phantom.exit();
+              }
+            );
           }
         );
       }
     );
-    state = "compliance";
   }catch(e){
     console.log(e);
     phantom.exit();
@@ -350,13 +363,9 @@ page.onLoadFinished = function(status){
     case "betaReview":
       betaReview();
       break;
-    case "compliance":
-      console.log("exiting...");
-      phantom.exit();
-      break;
     default:
-      state = signIn();
-      console.log("State = default.");
+      state = signIn();  //default state is login
+      console.log("State = login/default");
   }
 };
 
